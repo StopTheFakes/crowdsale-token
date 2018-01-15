@@ -1,9 +1,14 @@
-pragma solidity ^0.4.16;
+pragma solidity ^0.4.18;
+
+/**
+ * Welcome to the Telegram chat https://devsolidity.io/
+ */
 
 /**
  * @title SafeMath
  * @dev Math operations with safety checks that throw on error
  */
+
 library SafeMath {
   function mul(uint256 a, uint256 b) internal constant returns (uint256) {
     uint256 c = a * b;
@@ -41,7 +46,58 @@ contract Token {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract StandardToken is Token {
+/**
+ * @title Ownable
+ * @dev The Ownable contract has an owner address, and provides basic authorization control
+ * functions, this simplifies the implementation of "user permissions".
+ */
+contract Ownable {
+  address public owner;
+
+  /**
+   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
+   * account.
+   */
+  function Ownable() public {
+    owner = msg.sender;
+  }
+
+
+  /**
+   * @dev Throws if called by any account other than the owner.
+   */
+  modifier onlyOwner() {
+    require(msg.sender == owner);
+    _;
+  }
+
+
+  /**
+   * @dev Allows the current owner to transfer control of the contract to a newOwner.
+   * @param newOwner The address to transfer ownership to.
+   */
+  function transferOwnership(address newOwner) onlyOwner public {
+    require(newOwner != address(0));
+    owner = newOwner;
+  }
+
+}
+
+contract Pausable is Ownable {
+
+  uint public endDate;
+
+  /**
+   * @dev modifier to allow actions only when the contract IS not paused
+   */
+  modifier whenNotPaused() {
+    require(now >= endDate);
+    _;
+  }
+
+}
+
+contract StandardToken is Token, Pausable {
     using SafeMath for uint256;
     mapping (address => mapping (address => uint256)) internal allowed;
 
@@ -52,11 +108,8 @@ contract StandardToken is Token {
   * @param _to The address to transfer to.
   * @param _value The amount to be transferred.
   */
-  function transfer(address _to, uint256 _value) public returns (bool) {
+  function transfer(address _to, uint256 _value) public whenNotPaused returns (bool) {
     require(_to != address(0));
-    require(_value <= balances[msg.sender]);
-
-    // SafeMath.sub will throw if there is not enough balance.
     balances[msg.sender] = balances[msg.sender].sub(_value);
     balances[_to] = balances[_to].add(_value);
     Transfer(msg.sender, _to, _value);
@@ -79,9 +132,8 @@ contract StandardToken is Token {
    * @param _to address The address which you want to transfer to
    * @param _value uint256 the amount of tokens to be transferred
    */
-  function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused returns (bool) {
     require(_to != address(0));
-    require(_value <= balances[_from]);
     require(_value <= allowed[_from][msg.sender]);
 
     balances[_from] = balances[_from].sub(_value);
@@ -142,70 +194,196 @@ contract StandardToken is Token {
 
 }
 
-/**
- * @title Ownable
- * @dev The Ownable contract has an owner address, and provides basic authorization control
- * functions, this simplifies the implementation of "user permissions".
- */
-contract Ownable {
-  address public owner;
+contract StopTheFakes is StandardToken {
 
+    string public constant name = "STFCoin";
+    string public constant symbol = "STF";
+    uint8 public constant decimals = 18;
+    address public tokenWallet;
+    address public teamWallet = 0x5b2E57eA330a26a8e6e32256DDc4681Df8bFE809;
 
-  /**
-   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
-   * account.
-   */
-  function Ownable() {
-    owner = msg.sender;
-  }
+    uint256 public constant INITIAL_SUPPLY = 29000000 ether;
 
+    function StopTheFakes(address tokenOwner, uint _endDate) {
+        totalSupply = INITIAL_SUPPLY;
+        balances[teamWallet] = 7424000 ether;
+        balances[tokenOwner] = INITIAL_SUPPLY - balances[teamWallet];
+        endDate = _endDate;
+        tokenWallet = tokenOwner;
+        Transfer(0x0, teamWallet, balances[teamWallet]);
+        Transfer(0x0, tokenOwner, balances[tokenOwner]);
+    }
 
-  /**
-   * @dev Throws if called by any account other than the owner.
-   */
-  modifier onlyOwner() {
-    require(msg.sender == owner);
-    _;
-  }
-
-
-  /**
-   * @dev Allows the current owner to transfer control of the contract to a newOwner.
-   * @param newOwner The address to transfer ownership to.
-   */
-  function transferOwnership(address newOwner) onlyOwner {
-    require(newOwner != address(0));
-    owner = newOwner;
-  }
+    function sendTokens(address _to, uint _amount) external onlyOwner {
+        require(_amount <= balances[tokenWallet]);
+        balances[tokenWallet] -= _amount;
+        balances[_to] += _amount;
+        Transfer(tokenWallet, msg.sender, _amount);
+    }
 
 }
 
-contract STF is StandardToken, Ownable {
-    using SafeMath for uint;
-    string public constant name = "STF Token";
-    string public constant symbol = "STF";
-    uint256 public constant decimals = 18;
-    uint256 public constant tokenCreationCap = 29000000*10**decimals;
+contract SalesManager is Ownable {
+    using SafeMath for uint256;
 
-    event CreateSTF(address indexed _to, uint256 _value);
+    /**
+     *
+        Pre-ICO
+        Start date: January 21, 2018 (09:00 AM EST Time)
+        End date: February 21, 2018 (09:00 AM EST Time)
+        The number of tokens available: 1 305 000
+        Currency accepted: ETH, BTC
+        Token exchange rate: 1 ETH = 2400 STFcoins
+        Minimum transaction amount in Ethereum: 0.1 ETH
+        Minimum transaction amount in Bitcoin: 0.01 BTC
+        Bonuses:
+        Day 1-2: +40% bonus
+        Day 3-10: +30% bonus
+        Day 11-30: +25% bonus //check
 
-    function STF() {
+        ICO
+        Start date: March 21, 2018 (09:00 AM EST Time)
+        End date: April 21, 2018 (09:00 AM EST Time)
+        The number of tokens available: 20 271 000
+        Currency accepted: ETH, BTC
+        Token exchange rate: 1 ETH = 2400 STFcoins
+        Minimum transaction amount in Ethereum: 0.1 ETH
+        Minimum transaction amount in Bitcoin: 0.01 BTC
+        Bonuses:
+        Day 1: +15% bonus
+        Day 2-10: +10% bonus
+        Day 11-20: +5% bonus
+        Day 21-31: 0% bonus
+    **/
+
+    uint public constant startDate = 1516525200;
+    uint public constant endPreICO = 1519203600;
+
+    uint public constant startICO = 1521622800;
+    uint public constant endDate = 1524301200;
+
+    uint constant bonus40 = startDate + 2 days;
+    uint constant bonus30 = startDate + 10 days;
+    uint constant bonus25 = startDate + 31 days;
+
+    uint constant bonus15 = startICO + 1 days;
+    uint constant bonus10 = startICO + 10 days;
+    uint constant bonus5 = startICO + 31 days;
+
+
+    struct Stat {
+        uint currentFundraiser;
+        uint btcAmount;
+        uint ethAmount;
+        uint txCounter;
+    }
+    
+    Stat public stat;
+    
+    uint public constant preIcoCap = 1305000 ether;
+    uint public constant IcoCap = 20271000 ether;
+
+
+    uint256 tokenRate = 2400;
+    address public tokenAddress = 0x0;
+
+    address public tokenOwner = 0x0d23E5BCEF273d2C98a8b8EF3BFA11b22E6726Db;
+
+    /**
+     * @dev modifier to allow actions only when Pre-ICO end date is now
+     */
+    modifier isFinished() {
+        require(now >= endDate);
+        _;
     }
 
-    function() payable {
-        if (msg.value > 0) revert();
+    function isPreICO() internal returns (bool) {
+        if (now >= startDate && now < endPreICO) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    function generateTokens(address[] _owners, uint256[] _amount) external
-    onlyOwner {
-        for (uint i = 0; i < _owners.length; i++) {
-            uint256 checkedSupply = totalSupply.add(_amount[i]);
-            if (tokenCreationCap <= checkedSupply) revert();
-            balances[_owners[i]] += _amount[i];
-            totalSupply = totalSupply.add(_amount[i]);
-            CreateSTF(_owners[i], _amount[i]);
+    function isICO() internal returns (bool) {
+        if (now >= startICO && now < endDate) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function SalesManager () {
+        tokenAddress = new StopTheFakes(tokenOwner, endDate);
+    }
+
+    function () payable public {
+        if (msg.value < 0.1 ether || (!isPreICO() && !isICO())) revert();
+        buyTokens();
+    }
+
+    function buyTokens() internal {
+        uint256 tokens = msg.value.mul(tokenRate);
+        if(isPreICO()){
+            if (now <= bonus40) {
+                tokens += tokens * 40 / 100;
+            } else if (bonus40 > now &&  now <= bonus30) {
+                tokens += tokens * 30 / 100;
+            } else if (bonus30 > now &&  now <= bonus25) {
+                tokens += tokens * 25 / 100;
+            }
+
+            uint256 balance = preIcoCap.sub(stat.currentFundraiser);
+            if (balance < tokens) {
+                uint toReturn = tokenRate.mul(tokens.sub(balance));
+                msg.sender.transfer(toReturn);
+                sendTokens(balance, msg.value - toReturn);
+            } else {
+                sendTokens(tokens, msg.value);
+            }
+        } else if (isICO()) {
+            if (now <= bonus15) {
+                tokens += tokens * 15 / 100;
+            } else if (bonus15 > now &&  now <= bonus10) {
+                tokens += tokens * 10 / 100;
+            } else if (bonus10 > now &&  now <= bonus5) {
+                tokens += tokens * 5 / 100;
+            }
+
+            uint256 balanceIco = IcoCap.sub(stat.currentFundraiser);
+            if (balanceIco < tokens) {
+                toReturn = tokenRate.mul(tokens.sub(balanceIco));
+                msg.sender.transfer(toReturn);
+                sendTokens(balanceIco, msg.value - toReturn);
+            } else {
+                sendTokens(tokens, msg.value);
+            }
+        }  else {
+            revert();
         }
 
+    }
+
+    function sendTokens(uint _amount, uint _ethers) internal {
+        StopTheFakes tokenHolder = StopTheFakes(tokenAddress);
+        tokenHolder.sendTokens(msg.sender, _amount);
+        stat.currentFundraiser += _amount;
+        tokenOwner.transfer(_ethers);
+        stat.ethAmount += _ethers;
+        stat.txCounter += 1;
+    }
+
+    function sendTokensManually(address _to, uint _amount, uint _btcAmount) public onlyOwner {
+        require(_to != address(0));
+        StopTheFakes tokenHolder = StopTheFakes(tokenAddress);
+        tokenHolder.sendTokens(_to, _amount);
+        stat.currentFundraiser += _amount;
+        stat.btcAmount += _btcAmount;
+        stat.txCounter += 1;
+    }
+
+    function setTokenRate(uint newTokenRate) public onlyOwner {
+        tokenRate = newTokenRate;
     }
 
 }
